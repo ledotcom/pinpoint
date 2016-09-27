@@ -74,7 +74,7 @@
                 <groupId>org.codehaus.gmaven</groupId>
                 <artifactId>gmaven-plugin</artifactId>
                 <version>1.5</version>
-                <executions>
+              <!--   <executions>
                     <execution>
                         <phase>generate-sources</phase>
                         <goals>
@@ -84,7 +84,7 @@
                             <source>${pom.basedir}/VersionScript.groovy</source>
                         </configuration>
                     </execution>
-                </executions>
+                </executions> -->
             </plugin>
         </plugins>
     </build>

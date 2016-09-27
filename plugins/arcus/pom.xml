@@ -24,6 +24,12 @@
             <artifactId>arcus-java-client</artifactId>
             <version>1.8.1</version>
             <scope>provided</scope>
+            <exclusions>
+				<exclusion>
+					<groupId>org.jboss.netty</groupId>
+					<artifactId>netty</artifactId>
+				</exclusion>
+			</exclusions>
         </dependency>
 
         <!-- Logging depedencies -->
