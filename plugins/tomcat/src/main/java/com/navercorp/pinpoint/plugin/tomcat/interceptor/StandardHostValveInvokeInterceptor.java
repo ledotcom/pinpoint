@@ -20,11 +20,19 @@ import java.util.Enumeration;
 
 import javax.servlet.http.HttpServletRequest;
 
-import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
-import com.navercorp.pinpoint.bootstrap.context.*;
 import org.apache.catalina.connector.Request;
 
 import com.navercorp.pinpoint.bootstrap.config.Filter;
+import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
+import com.navercorp.pinpoint.bootstrap.context.Header;
+import com.navercorp.pinpoint.bootstrap.context.MethodDescriptor;
+import com.navercorp.pinpoint.bootstrap.context.RemoteAddressResolver;
+import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
+import com.navercorp.pinpoint.bootstrap.context.SpanId;
+import com.navercorp.pinpoint.bootstrap.context.SpanRecorder;
+import com.navercorp.pinpoint.bootstrap.context.Trace;
+import com.navercorp.pinpoint.bootstrap.context.TraceContext;
+import com.navercorp.pinpoint.bootstrap.context.TraceId;
 import com.navercorp.pinpoint.bootstrap.interceptor.AroundInterceptor;
 import com.navercorp.pinpoint.bootstrap.logging.PLogger;
 import com.navercorp.pinpoint.bootstrap.logging.PLoggerFactory;
@@ -34,6 +42,7 @@ import com.navercorp.pinpoint.bootstrap.util.NumberUtils;
 import com.navercorp.pinpoint.bootstrap.util.StringUtils;
 import com.navercorp.pinpoint.common.trace.AnnotationKey;
 import com.navercorp.pinpoint.common.trace.ServiceType;
+import com.navercorp.pinpoint.common.util.TransactionIdUtils;
 import com.navercorp.pinpoint.plugin.tomcat.AsyncAccessor;
 import com.navercorp.pinpoint.plugin.tomcat.ServletAsyncMethodDescriptor;
 import com.navercorp.pinpoint.plugin.tomcat.ServletSyncMethodDescriptor;
@@ -273,6 +282,11 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
 
         if (!recorder.isRoot()) {
             recordParentInfo(recorder, request);
+        }else{
+        	// 如果是root，即parentspanid为-1，则判断是否从nginx过来，如果是，则需要设置parentaplicationname
+            if(null != request.getHeader(Header.HTTP_NGINX_PRISM_GUID.toString())){
+            	recorder.recordParentApplication("nginx", ServiceType.NGINX.getCode()); // 如果没有设置Pinpoint-pAppName并且prism-guid不为null，则判断是从nginx转过来的
+            }
         }
         recorder.recordApi(SERVLET_SYNCHRONOUS_API_TAG);
     }
@@ -341,15 +355,25 @@ public class StandardHostValveInvokeInterceptor implements AroundInterceptor {
      * @return TraceId when it is possible to get a transactionId from Http header. if not possible return null
      */
     private TraceId populateTraceIdFromRequest(HttpServletRequest request) {
-
-        String transactionId = request.getHeader(Header.HTTP_TRACE_ID.toString());
+    	String transactionId = null;
+    	long parentSpanID = SpanId.NULL;
+    	long spanID = SpanId.NULL;
+    	// 判断是否从孙伟的nginx传过来的请求
+    	String prism_guid= request.getHeader(Header.HTTP_NGINX_PRISM_GUID.toString());
+    	short flags = NumberUtils.parseShort(request.getHeader(Header.HTTP_FLAGS.toString()), (short) 0);
+    	if(null != prism_guid){
+    		String nginxAgent = "nginx"+StringUtils.defaultString(request.getHeader(Header.HTTP_NGINX_PRISM_MAC.toString()), "");
+    		spanID = SpanId.nextSpanID(SpanId.NULL, parentSpanID); //如果guid有值，则tomcat的spanid为生成的id
+    		// 设置nginx的parent属性
+    		transactionId = nginxAgent+TransactionIdUtils.TRANSACTION_ID_DELIMITER+prism_guid.substring(0, prism_guid.length()-3)+TransactionIdUtils.TRANSACTION_ID_DELIMITER+prism_guid.substring(prism_guid.length()-3);
+    	}
+        transactionId = StringUtils.defaultString(request.getHeader(Header.HTTP_TRACE_ID.toString()),transactionId);
         if (transactionId != null) {
-
-            long parentSpanID = NumberUtils.parseLong(request.getHeader(Header.HTTP_PARENT_SPAN_ID.toString()), SpanId.NULL);
-            long spanID = NumberUtils.parseLong(request.getHeader(Header.HTTP_SPAN_ID.toString()), SpanId.NULL);
-            short flags = NumberUtils.parseShort(request.getHeader(Header.HTTP_FLAGS.toString()), (short) 0);
+            parentSpanID = NumberUtils.parseLong(request.getHeader(Header.HTTP_PARENT_SPAN_ID.toString()),parentSpanID);
+            spanID = NumberUtils.parseLong(request.getHeader(Header.HTTP_SPAN_ID.toString()), spanID);
 
             final TraceId id = traceContext.createTraceId(transactionId, parentSpanID, spanID, flags);
+            
             if (isDebug) {
                 logger.debug("TraceID exist. continue trace. {}", id);
             }
