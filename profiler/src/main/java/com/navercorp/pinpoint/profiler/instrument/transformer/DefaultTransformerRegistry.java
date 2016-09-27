@@ -64,9 +64,10 @@ public class DefaultTransformerRegistry implements TransformerRegistry {
     private void addModifier0(ClassFileTransformer transformer, String className) {
         final String jvmClassName = JavaAssistUtils.javaNameToJvmName(className);
         ClassFileTransformer old = registry.put(jvmClassName, transformer);
-        
         if (old != null) {
-            throw new IllegalStateException("Transformer already exist. className:" + jvmClassName + " new:" + transformer.getClass() + " old:" + old.getClass());
+        	// 此处只能打印出来，实际跑的时候如果不修改，则会抛错 Dimmacro
+        	System.out.println("Transformer already exist. className:" + jvmClassName + " new:" + transformer.getClass() + " old:" + old.getClass());
+            //throw new IllegalStateException("Transformer already exist. className:" + jvmClassName + " new:" + transformer.getClass() + " old:" + old.getClass());
         }
     }
 }
