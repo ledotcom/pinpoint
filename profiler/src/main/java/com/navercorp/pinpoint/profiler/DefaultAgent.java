@@ -60,6 +60,7 @@ import com.navercorp.pinpoint.profiler.receiver.service.ThreadDumpService;
 import com.navercorp.pinpoint.profiler.sampler.SamplerFactory;
 import com.navercorp.pinpoint.profiler.sender.DataSender;
 import com.navercorp.pinpoint.profiler.sender.EnhancedDataSender;
+import com.navercorp.pinpoint.profiler.sender.KafkaDataSender;
 import com.navercorp.pinpoint.profiler.sender.TcpDataSender;
 import com.navercorp.pinpoint.profiler.sender.UdpDataSender;
 import com.navercorp.pinpoint.profiler.util.ApplicationServerTypeResolver;
@@ -92,6 +93,8 @@ public class DefaultAgent implements Agent {
     private PinpointClientFactory clientFactory;
     private PinpointClient client;
     private final EnhancedDataSender tcpDataSender;
+    
+    private final EnhancedDataSender kafkaDataSender; // 所有发送均通过kafka
 
     private final DataSender statDataSender;
     private final DataSender spanDataSender;
@@ -190,16 +193,21 @@ public class DefaultAgent implements Agent {
         
         CommandDispatcher commandDispatcher = new CommandDispatcher();
 
-        this.tcpDataSender = createTcpDataSender(commandDispatcher);
+        this.kafkaDataSender = createKafkaSender();
+        
+        //this.tcpDataSender = createTcpDataSender(commandDispatcher);
+        this.tcpDataSender = this.kafkaDataSender;
 
         this.serverMetaDataHolder = createServerMetaDataHolder();
 
-        this.spanDataSender = createUdpSpanDataSender(this.profilerConfig.getCollectorSpanServerPort(), "Pinpoint-UdpSpanDataExecutor",
-                this.profilerConfig.getSpanDataSenderWriteQueueSize(), this.profilerConfig.getSpanDataSenderSocketTimeout(),
-                this.profilerConfig.getSpanDataSenderSocketSendBufferSize());
-        this.statDataSender = createUdpStatDataSender(this.profilerConfig.getCollectorStatServerPort(), "Pinpoint-UdpStatDataExecutor",
+        // 增加span信息进kafka，支持进kafka与udp的选择 Dimmacro 2016年7月20日14:41:28
+        //this.spanDataSender = creatSpanDataSender();
+        this.spanDataSender = this.kafkaDataSender;
+        
+        /*this.statDataSender = createUdpStatDataSender(this.profilerConfig.getCollectorStatServerPort(), "Pinpoint-UdpStatDataExecutor",
                 this.profilerConfig.getStatDataSenderWriteQueueSize(), this.profilerConfig.getStatDataSenderSocketTimeout(),
-                this.profilerConfig.getStatDataSenderSocketSendBufferSize());
+                this.profilerConfig.getStatDataSenderSocketSendBufferSize());*/
+        this.statDataSender = this.kafkaDataSender;
 
         this.traceContext = createTraceContext();
 
@@ -216,7 +224,27 @@ public class DefaultAgent implements Agent {
         InterceptorInvokerHelper.setPropagateException(profilerConfig.isPropagateInterceptorException());
     }
 
-    public String getBootstrapCoreJar() {
+    // 根据spanDataSenderType构造sender
+    private DataSender creatSpanDataSender() {
+		String senderType = this.profilerConfig.readString("profiler.collector.span.type", "udp");
+		if("kafka".equalsIgnoreCase(senderType)){
+			return createKafkaSender();
+		}else{
+			return createUdpSpanDataSender(this.profilerConfig.getCollectorSpanServerPort(), "Pinpoint-UdpSpanDataExecutor",
+	                this.profilerConfig.getSpanDataSenderWriteQueueSize(), this.profilerConfig.getSpanDataSenderSocketTimeout(),
+	                this.profilerConfig.getSpanDataSenderSocketSendBufferSize());
+		}
+	}
+
+	private EnhancedDataSender createKafkaSender() {
+		String kafkaTopic =  this.profilerConfig.readString("profiler.collector.span.kafka.topic", "");
+		String kafkaServers = this.profilerConfig.readString("profiler.collector.span.kafka.servers", "");
+		int producerSize = this.profilerConfig.readInt("profiler.collector.span.kafka.producer.size", 3);
+		String kafkaProperties = this.profilerConfig.readString("profiler.collector.span.kafka.properties", "");
+		return new KafkaDataSender(kafkaTopic, kafkaServers, producerSize, kafkaProperties, "Pinpoint-KafkaSpanDataExecutor", this.profilerConfig.getSpanDataSenderWriteQueueSize());
+	}
+
+	public String getBootstrapCoreJar() {
         return agentOption.getBootStrapCoreJarPath();
     }
 
@@ -308,6 +336,7 @@ public class DefaultAgent implements Agent {
         final boolean traceActiveThread = profilerConfig.isTraceAgentActiveThread();
         final DefaultTraceContext traceContext = new DefaultTraceContext(jdbcSqlCacheSize, this.agentInformation, storageFactory, sampler, this.serverMetaDataHolder, traceActiveThread);
         traceContext.setPriorityDataSender(this.tcpDataSender);
+        //traceContext.setPriorityDataSender(this.spanDataSender);
         traceContext.setProfilerConfig(profilerConfig);
 
         return traceContext;

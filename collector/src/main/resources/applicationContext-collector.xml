@@ -36,6 +36,9 @@
     </bean>
 
     <util:properties id="pinpoint_collector_properties" location="classpath:pinpoint-collector.properties" />
+    
+    <!-- kafka 参数配置文件 Dimmacro 2016年8月4日18:09:19 -->
+    <util:properties id="pinpoint_kafkaConsumer_properties" location="classpath:kafkaConsumer.properties" />
 
     <bean id="collectorConfiguration" class="com.navercorp.pinpoint.collector.config.CollectorConfiguration">
         <property name="properties" ref="pinpoint_collector_properties"/>
@@ -90,6 +93,13 @@
     <bean id="udpSpanDispatchHandlerWrapper" class="com.navercorp.pinpoint.collector.receiver.DispatchHandlerWrapper">
     	<constructor-arg ref="udpSpanDispatchHandler"/>
     </bean>
+    
+    <!-- 修改成kafkaDispatchHandler -->
+    <bean id="kafkaDispatchHandler" class="com.navercorp.pinpoint.collector.receiver.KafkaDispatchHandler"/>
+    <bean id="kafkaDispatchHandlerWrapper" class="com.navercorp.pinpoint.collector.receiver.DispatchHandlerWrapper">
+    	<constructor-arg ref="kafkaDispatchHandler"/>
+    </bean>
+    
 
     <!-- Serializer Factory Beans -->
     <bean id="commandHeaderTBaseSerializerFactory" class="com.navercorp.pinpoint.thrift.io.CommandHeaderTBaseSerializerFactory">
@@ -189,7 +199,7 @@
     </bean>
 
     <!-- TCPReceiver related Beans -->
-    <bean id="serverAcceptor" class="com.navercorp.pinpoint.rpc.server.PinpointServerAcceptor"/>
+    <!-- <bean id="serverAcceptor" class="com.navercorp.pinpoint.rpc.server.PinpointServerAcceptor"/>
 
     <util:list id="channelStateChangeEventHandlers" value-type="com.navercorp.pinpoint.rpc.server.handler.ServerStateChangeEventHandler">
         <ref bean="agentLifeCycleChangeEventHandler"/> 
@@ -200,10 +210,10 @@
         <constructor-arg type="com.navercorp.pinpoint.collector.receiver.DispatchHandler" ref="tcpDispatchHandlerWrapper"/>
         <constructor-arg type="com.navercorp.pinpoint.rpc.server.PinpointServerAcceptor" ref="serverAcceptor"/>
         <constructor-arg type="com.navercorp.pinpoint.collector.cluster.zookeeper.ZookeeperClusterService" ref="clusterService"/>
-    </bean>
+    </bean> -->
 
     <!-- UDPSpanReceiver related Beans -->
-    <bean id="udpSpanBasePacketHandler" class="com.navercorp.pinpoint.collector.receiver.udp.BaseUDPHandlerFactory">
+    <!-- <bean id="udpSpanBasePacketHandler" class="com.navercorp.pinpoint.collector.receiver.udp.BaseUDPHandlerFactory">
         <constructor-arg index="0" ref="udpSpanDispatchHandlerWrapper"/>
         <constructor-arg index="1" ref="tBaseFilterChain"/>
         <constructor-arg index="2" value="#{collectorConfiguration.l4IpList}"/>
@@ -230,10 +240,17 @@
         <constructor-arg index="6" value="#{collectorConfiguration.udpSpanWorkerQueueSize}"/>
         <constructor-arg index="7" value="#{collectorMetric.enable}"/>
 
+    </bean> -->
+    
+    <!-- kafkaReceiver Dimmacro 2016年8月4日18:11:442 -->
+    <bean id="kafkaReceiver" class="com.navercorp.pinpoint.collector.receiver.KafkaReceiver">
+        <constructor-arg type="java.util.Properties" ref="pinpoint_kafkaConsumer_properties"/>
+        <constructor-arg type="com.navercorp.pinpoint.collector.receiver.DispatchHandler" ref="kafkaDispatchHandlerWrapper"/>
     </bean>
+    
 
     <!-- UDPStatReceiver related Beans -->
-    <bean id="udpStatBasePacketHandler" class="com.navercorp.pinpoint.collector.receiver.udp.BaseUDPHandlerFactory">
+<!--     <bean id="udpStatBasePacketHandler" class="com.navercorp.pinpoint.collector.receiver.udp.BaseUDPHandlerFactory">
         <constructor-arg index="0" ref="udpDispatchHandlerWrapper"/>
         <constructor-arg index="1" ref="tBaseFilterChain"/>
         <constructor-arg index="2" value="#{collectorConfiguration.l4IpList}"/>
@@ -248,7 +265,7 @@
         <constructor-arg index="5" value="#{collectorConfiguration.udpStatWorkerThread}"/>
         <constructor-arg index="6" value="#{collectorConfiguration.udpStatWorkerQueueSize}"/>
         <constructor-arg index="7" value="#{collectorMetric.enable}"/>
-    </bean>
+    </bean> -->
     
     <bean id="jsonObjectMapper" class="org.codehaus.jackson.map.ObjectMapper">
     </bean>
