@@ -18,6 +18,7 @@ package com.navercorp.pinpoint.collector.handler;
 
 import java.util.List;
 
+import com.navercorp.pinpoint.bootstrap.util.StringUtils;
 import com.navercorp.pinpoint.common.service.ServiceTypeRegistryService;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 
@@ -92,10 +93,13 @@ public class SpanHandler implements SimpleHandler {
         if (span.getParentSpanId() == -1) {
 
             // create virtual user
-            statisticsHandler.updateCaller(span.getApplicationName(), ServiceType.USER, span.getAgentId(), span.getApplicationName(), applicationServiceType, span.getAgentId(), span.getElapsed(), isError);
+        	String callerApplicationName = StringUtils.defaultString(span.parentApplicationName, span.getApplicationName());
+        	ServiceType callerServiceType = "nginx".equalsIgnoreCase(callerApplicationName)?ServiceType.NGINX:ServiceType.USER;
+        			
+            statisticsHandler.updateCaller(callerApplicationName, callerServiceType, span.getAgentId(), span.getApplicationName(), applicationServiceType, span.getAgentId(), span.getElapsed(), isError);
 
             // update the span information of the current node (self)
-            statisticsHandler.updateCallee(span.getApplicationName(), applicationServiceType, span.getApplicationName(), ServiceType.USER, span.getAgentId(), span.getElapsed(), isError);
+            statisticsHandler.updateCallee(span.getApplicationName(), applicationServiceType, callerApplicationName, callerServiceType, span.getAgentId(), span.getElapsed(), isError);
             bugCheck++;
         }
 

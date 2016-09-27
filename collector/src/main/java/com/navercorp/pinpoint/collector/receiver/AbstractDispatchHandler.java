@@ -35,7 +35,7 @@ public abstract class AbstractDispatchHandler implements DispatchHandler {
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    private AcceptedTimeService acceptedTimeService;
+    AcceptedTimeService acceptedTimeService;
 
     public AbstractDispatchHandler() {
     }

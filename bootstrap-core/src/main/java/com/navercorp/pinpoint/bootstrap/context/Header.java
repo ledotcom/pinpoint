@@ -35,7 +35,11 @@ public enum Header {
     HTTP_FLAGS("Pinpoint-Flags"),
     HTTP_PARENT_APPLICATION_NAME("Pinpoint-pAppName"),
     HTTP_PARENT_APPLICATION_TYPE("Pinpoint-pAppType"),
-    HTTP_HOST("Pinpoint-Host");
+    HTTP_HOST("Pinpoint-Host"),
+    
+    // 增加从nginx过来的header信息 Dimmacro 2016年8月22日19:11:41
+    HTTP_NGINX_PRISM_GUID("prism-guid"),
+    HTTP_NGINX_PRISM_MAC("prism-mac");
 
     private String name;
 

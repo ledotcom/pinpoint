@@ -185,6 +185,9 @@ public interface ServiceType {
 
     // Undefined Service Code
     ServiceType UNDEFINED = of(-1, "UNDEFINED", TERMINAL);
+    
+   // nginx Service Code
+    ServiceType NGINX = of(1111, "NGINX", RECORD_STATISTICS);
 
     // Callee node that agent hasn't been installed
     ServiceType UNKNOWN = of(1, "UNKNOWN", RECORD_STATISTICS);
